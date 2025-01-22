@@ -1,7 +1,7 @@
 # Meal Master
 Awesome website to generate meals with ingredients using AI.
 
-## Live Demo: 
+## Live Demo: https://meal-masterr.vercel.app
 
 ## Tech Used:
 - React Next.js
