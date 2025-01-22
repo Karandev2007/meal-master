@@ -5,8 +5,11 @@ import { useState } from "react";
 export default function Home() {
   const [ingredients, setIngredients] = useState([""]);
   const [dish, setDish] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loadingGenerate, setLoadingGenerate] = useState(false);
+  const [loadingSurprise, setLoadingSurprise] = useState(false);
   const [error, setError] = useState(null); // show error msg
+  const [showNutriInfo, setShowNutriInfo] = useState(false);
+  const [dietaryPrefer, setdietaryPrefer] = useState("vegetarian"); // set default vegi
 
   // add new ingredient box
   const addIngredientBox = () => {
@@ -30,7 +33,18 @@ export default function Home() {
     return text.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
   };
 
-  // Generate dish and process
+  // function to play audios for gen & supr
+  const playAudio4generate = () => {
+    const audio = new Audio("/success.mp3");
+    audio.play();
+  };
+
+  const playAudio4suprise = () => {
+    const audio = new Audio("/wow.mp3");
+    audio.play();
+  };
+
+  // generate dish and process
   const generateDishes = async () => {
     const query = ingredients.filter((item) => item.trim() !== "").join(", ");
     if (!query) {
@@ -38,13 +52,15 @@ export default function Home() {
       return;
     }
 
-    setLoading(true);
-    setDish(null); // clear previous dish
+    playAudio4generate(); // play audio when the button is clicked
+    setLoadingGenerate(true); // set loading for generate dish
+    setDish(null);
     setError(null);
 
     try {
-      // call api on groq
-      const res = await fetch(`/api/generate?items=${encodeURIComponent(query)}`);
+      const res = await fetch(
+        `/api/generate?items=${encodeURIComponent(query)}&diet=${dietaryPrefer}&nutritional=${showNutriInfo}`
+      );
       const data = await res.json();
 
       if (data.error) {
@@ -56,7 +72,31 @@ export default function Home() {
     } catch (err) {
       setError("Something went wrong, please try again!");
     } finally {
-      setLoading(false); // reset loading
+      setLoadingGenerate(false); // reset loading for generate dish
+    }
+  };
+
+  // surprise me func
+  const surpriseMe = async () => {
+    playAudio4suprise(); // play audio when the button is clicked
+    setLoadingSurprise(true); // set loading for surprise me
+    setDish(null);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/generate?surprise=true`);
+      const data = await res.json();
+
+      if (data.error) {
+        setError("Error generating surprise meal...");
+      } else {
+        const formattedDish = formatDishText(data.choices[0].message.content);
+        setDish(formattedDish);
+      }
+    } catch (err) {
+      setError("Something went wrong, please try again!");
+    } finally {
+      setLoadingSurprise(false); // reset loading for surprise fun
     }
   };
 
@@ -81,57 +121,32 @@ export default function Home() {
           className="flex items-center p-4 mb-4 text-red-500 rounded-lg bg-gray-800 dark:bg-gray-800 dark:text-red-500 absolute bottom-4 right-4 z-10"
           role="alert"
         >
-          <svg
-            className="flex-shrink-0 w-4 h-4"
-            aria-hidden="true"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
-          </svg>
-          <span className="sr-only">Error</span>
           <div className="ms-3 text-sm font-medium">{error}</div>
           <button
             type="button"
-            className="ms-auto -mx-1.5 -my-1.5 bg-gray-800 text-red-500 rounded-lg focus:ring-2 focus:ring-red-400 p-1.5 hover:bg-gray-700 inline-flex items-center justify-center h-8 w-8 dark:bg-gray-800 dark:text-red-500 dark:hover:bg-gray-700"
+            className="ms-auto -mx-1.5 -my-1.5 bg-gray-800 text-red-500 rounded-lg p-1.5 hover:bg-gray-700"
             onClick={() => setError(null)} // close it after clicking
             aria-label="Close"
           >
-            <span className="sr-only">Close</span>
-            <svg
-              className="w-3 h-3"
-              aria-hidden="true"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 14 14"
-            >
-              <path
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"
-              />
-            </svg>
+            ✖
           </button>
         </div>
       )}
 
-      <div className="w-full max-w-md">
+      <div className="flex flex-col items-center w-full max-w-md">
         {ingredients.map((ingredient, index) => (
-          <div key={index} className="flex items-center space-x-2 mb-2">
+          <div key={index} className="flex items-center space-x-2 mb-2 w-full">
             <input
               type="text"
               id={`ingredient-box-${index}`}
               value={ingredient}
               onChange={(e) => updateIngredient(index, e.target.value)}
               placeholder={`Enter ingredient ${index + 1}`}
-              className="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:focus:ring-blue-500 dark:focus:border-blue-500"
+              className="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg p-2.5 flex-grow"
             />
             <button
               onClick={() => removeIngredientBox(index)}
-              className="focus:outline-none text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2 dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900"
+              className="text-white bg-red-700 hover:bg-red-800 font-medium rounded-lg text-sm px-5 py-2"
             >
               ✖
             </button>
@@ -141,19 +156,56 @@ export default function Home() {
 
       <button
         onClick={addIngredientBox}
-        className="text-white bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-blue-300 dark:focus:ring-blue-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2"
+        className="text-white bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 hover:bg-gradient-to-br font-medium rounded-lg text-sm px-5 py-2 me-2 mb-2"
       >
         + Add More Ingredients
       </button>
 
-      <button
-        onClick={generateDishes}
-        className="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 overflow-hidden text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-green-400 to-blue-600 group-hover:from-green-400 group-hover:to-blue-600 hover:text-white dark:text-white focus:ring-4 focus:outline-none focus:ring-green-200 dark:focus:ring-green-800"
-      >
-        <span className="relative px-5 py-2.5 transition-all ease-in duration-75 bg-white dark:bg-gray-900 rounded-md group-hover:bg-opacity-0">
-          {loading ? "Loading..." : "Generate Dish"}
-        </span>
-      </button>
+      {/* nutritional information and dropdown */}
+      <div className="flex items-center mb-4">
+        <input
+          id="default-checkbox"
+          type="checkbox"
+          checked={showNutriInfo}
+          onChange={() => setShowNutriInfo(!showNutriInfo)}
+          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-2 focus:ring-blue-600 dark:bg-gray-700 dark:border-gray-600"
+        />
+        <label
+          htmlFor="default-checkbox"
+          className="ms-2 text-sm font-medium text-gray-300"
+        >
+          Get Nutritional Information
+        </label>
+      </div>
+
+      <div className="flex items-center justify-center mb-4">
+        <select
+          value={dietaryPrefer}
+          onChange={(e) => setdietaryPrefer(e.target.value)}
+          className="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg p-2 me-4"
+        >
+          <option value="vegetarian">Vegetarian 🥦</option>
+          <option value="non-vegetarian">Non-Vegetarian 🍖</option>
+          <option value="any">Any 🍱</option>
+        </select>
+      </div>
+
+      {/* ass grabed buttons toget */}
+      <div className="flex space-x-4">
+        <button
+          onClick={generateDishes}
+          className="text-white bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-blue-300 dark:focus:ring-blue-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2"
+        >
+          {loadingGenerate ? "Loading..." : "Generate Dish 🌯"}
+        </button>
+
+        <button
+          onClick={surpriseMe}
+          className="text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:bg-gradient-to-l focus:ring-4 focus:outline-none focus:ring-purple-200 dark:focus:ring-purple-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2"
+        >
+          {loadingSurprise ? "Loading..." : "Surprise Me ✨"}
+        </button>
+      </div>
 
       {dish && (
         <div
@@ -163,4 +215,4 @@ export default function Home() {
       )}
     </div>
   );
-}
+};
